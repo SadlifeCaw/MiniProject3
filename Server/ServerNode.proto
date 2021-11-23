@@ -1,0 +1,35 @@
+syntax = "proto3";
+package Server;
+
+option go_package = "https://github.com/SadlifeCaw/MiniProject3";
+
+service ServerNode {
+  rpc AcceptRequest(Request) returns (StatusReply){};
+  rpc Finished(FinishMessage) returns (FinishReply){};
+  rpc ExportInformation(InfoMessage) returns (EmptyReply){};
+}
+
+message Request {
+  string message = 1;
+  int32 bid = 2;
+}
+
+message FinishMessage{
+  int32 amount = 1;
+  int32 clientID = 2;
+}
+
+message FinishReply{
+  string reply = 1;
+}
+
+message StatusReply{
+  string replyMessage = 1;
+}
+
+message InfoMessage{
+  int32 amount = 1;
+}
+
+message EmptyReply{
+}
