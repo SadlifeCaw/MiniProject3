@@ -1,9 +1,9 @@
 syntax = "proto3";
-package Server;
+package Auction;
 
 option go_package = "https://github.com/SadlifeCaw/MiniProject3";
 
-service ServerNode {
+service Auction {
   rpc Bid(BidRequest) returns (BidReply){};
   rpc Status(StatusRequest) returns (StatusReply){};
   rpc Finished(FinishMessage) returns (FinishReply){};
@@ -13,15 +13,18 @@ service ServerNode {
 message StatusRequest {
   string message = 1;
   int32 bid = 2;
+  string port = 3;
 }
 
 message BidRequest {
   string message = 1;
+  string port = 2;
 }
 
 message FinishMessage{
   int32 amount = 1;
   int32 clientID = 2;
+  string port = 3;
 }
 
 message FinishReply{
@@ -38,6 +41,7 @@ message BidReply{
 
 message InfoMessage{
   int32 amount = 1;
+  string port = 2;
 }
 
 message EmptyReply{
