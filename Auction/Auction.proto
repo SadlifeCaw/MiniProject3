@@ -11,24 +11,12 @@ service Auction {
 }
 
 message StatusRequest {
-  string message = 1;
-  int32 bid = 2;
-  string port = 3;
+
 }
 
 message BidRequest {
-  string message = 1;
-  string port = 2;
-}
-
-message FinishMessage{
-  int32 amount = 1;
-  int32 clientID = 2;
-  string port = 3;
-}
-
-message FinishReply{
-  string reply = 1;
+  string bid = 1;
+  string username = 2;
 }
 
 message StatusReply{
@@ -39,10 +27,6 @@ message BidReply{
   string replyMessage = 1;
 }
 
-message InfoMessage{
-  int32 amount = 1;
-  string port = 2;
-}
 
 message EmptyReply{
 }
