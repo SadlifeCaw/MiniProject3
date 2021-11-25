@@ -48,14 +48,15 @@ func ReadFromTerminal() {
 		}
 
 		clientMessage = strings.Trim(clientMessage, "\r\n")
-		clientMessage = strings.ToLower(clientMessage)
-		splitString := strings.Fields(clientMessage)
 
 		//rn username is checked every time user types message, can be optimized
 		if username == "" {
 			username = clientMessage
 			continue
 		}
+
+		clientMessage = strings.ToLower(clientMessage)
+		splitString := strings.Fields(clientMessage)
 
 		if splitString[0] == "bid" {
 
@@ -81,6 +82,7 @@ func BroadcastToServer(isBid bool, bidAmount string) {
 		var conn *grpc.ClientConn
 
 		//the server has 1 second to respond, otherwise assumed to be dead
+		//this will be very slow in case of a lot of dead servers, since the loop is not async
 		conn, error := grpc.Dial(port, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(time.Second))
 
 		//if the server is dead, skip it
@@ -99,8 +101,8 @@ func BroadcastToServer(isBid bool, bidAmount string) {
 		if isBid {
 			//send bid request
 			request := auction.BidRequest{
-				Message: bidAmount,
-				Port:    username,
+				Bid:      bidAmount,
+				Username: username,
 			}
 
 			BidReply, err := client.Bid(ctx, &request)
@@ -113,13 +115,21 @@ func BroadcastToServer(isBid bool, bidAmount string) {
 		} else {
 			//send status request
 			request := auction.StatusRequest{}
+
+			StatusReply, err := client.Status(ctx, &request)
+			if err != nil {
+				fmt.Println("Error while waiting for server reply (Status)")
+			}
+
+			SliceOfServerResponses = append(SliceOfServerResponses, StatusReply.ReplyMessage)
 		}
 	}
 
+	//see if data is valid
 	responsesAreValid := CheckReponseValidity(SliceOfServerResponses)
 
 	if responsesAreValid {
-		//if the data is valid, we can print any arbitrary value
+		//if the data is valid, we can print any arbitrary value. pick 0 for bound safety
 		fmt.Println(SliceOfServerResponses[0])
 	} else {
 		//if data is invalid, try to query servers again
@@ -144,6 +154,7 @@ func CheckReponseValidity(ServerResponses []string) (isValid bool) {
 			return false
 		}
 
+		//why? because go is shit
 		if message == 'p' {
 			log.Fatalf("???")
 		}

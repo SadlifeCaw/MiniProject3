@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	auction "github.com/SadlifeCaw/MiniProject3/Auction"
 
@@ -27,6 +28,8 @@ var model = auction.AuctionModel{
 }
 
 var ownPort string
+var auctionOver bool
+var auctionTime int = 60
 
 func main() {
 
@@ -69,6 +72,8 @@ func main() {
 
 	log.Println("Server is set up on port", ownPort)
 
+	go AuctionCounter()
+
 	if err := grpcServer.Serve(list); err != nil {
 		log.Fatalf("failed to server %v", err)
 	}
@@ -78,33 +83,80 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to start gRPC Server :: %v", err)
 	}
-
-	fmt.Println(model)
 }
 
+func AuctionCounter() {
+	//wait untill a bid is made
+	for {
+		if model.HighestBid > 0 {
+			break
+		}
+	}
+
+	//decrease untill 0
+	for auctionTime > 0 {
+		time.Sleep(time.Second)
+		auctionTime--
+	}
+	if auctionTime == 0 {
+		auctionOver = true
+	}
+}
+
+//grpc methods
+
 func (s *Server) Bid(ctx context.Context, in *auction.BidRequest) (*auction.BidReply, error) {
-	username := in.Port
-	bidAmountInt, err := strconv.Atoi(in.Message)
-	var replyMessage string
 
-	if err != nil {
-		log.Fatalf("Error converting bid amount")
-	}
+	reply := auction.BidReply{}
 
-	// a better implementation would make sure each client has a unique ID rather than only rely on username
-	if bidAmountInt > int(model.HighestBid) {
-		model.HighestBid = int(bidAmountInt)
-		model.HighestBidder = username
+	if auctionTime <= 0 {
+		reply.ReplyMessage = "The auction has ended. You can no longer bid"
 
-		replyMessage = "You now have the highest bid by " + in.Message
 	} else {
-		highestBidString := strconv.Itoa(model.HighestBid)
-		//it would make more sense to split this information in the replyMessage, and let the client handle formatting
-		replyMessage = "Your bid did not go through. The highest current bid is " + highestBidString + " by " + model.HighestBidder
+		username := in.Username
+		bidAmountInt, err := strconv.Atoi(in.Bid)
+		var replyMessage string
+
+		if err != nil {
+			log.Fatalf("Error converting bid amount")
+		}
+
+		// a better implementation would make sure each client has a unique ID rather than only rely on username
+		if bidAmountInt > int(model.HighestBid) {
+			model.HighestBid = int(bidAmountInt)
+			model.HighestBidder = username
+
+			replyMessage = "You now have the highest bid by " + in.Bid + ". Time remaining " + strconv.Itoa(auctionTime) + " seconds"
+		} else {
+			highestBidString := strconv.Itoa(model.HighestBid)
+			//it would make more sense to split this information in the replyMessage, and let the client handle formatting
+			replyMessage = "Your bid did not go through. The highest current bid is " + highestBidString + " by " + model.HighestBidder + ". Time remaining " + strconv.Itoa(auctionTime) + " seconds"
+		}
+
+		reply.ReplyMessage = replyMessage
 	}
 
-	reply := auction.BidReply{
-		ReplyMessage: replyMessage,
+	return &reply, nil
+}
+
+func (s *Server) Status(ctx context.Context, in *auction.StatusRequest) (*auction.StatusReply, error) {
+	var stringToReturn string
+
+	bidAmountInt := strconv.Itoa(model.HighestBid)
+
+	if auctionOver {
+		stringToReturn = "The auction has ended. The winner was " + model.HighestBidder + " who won with a bid of " + bidAmountInt
+	}
+	if auctionTime < 60 && !auctionOver {
+		//auction started
+		stringToReturn = "The auction is ongoing. The highest bid is " + bidAmountInt + " by " + model.HighestBidder + ". Time remaining " + strconv.Itoa(auctionTime) + " seconds"
+	}
+	if auctionTime == 60 && !auctionOver {
+		stringToReturn = "The auction hasn't begun yet. Make a bid to start!"
+	}
+
+	reply := auction.StatusReply{
+		ReplyMessage: stringToReturn,
 	}
 
 	return &reply, nil
