@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"net"
-	"os"
+	"strconv"
 
 	auction "github.com/SadlifeCaw/MiniProject3/Auction"
 
@@ -11,36 +13,26 @@ import (
 )
 
 type Server struct {
-	auction.UnimplementedServerNodeServer
+	auction.UnimplementedAuctionServer
 }
 
 //slice of all known connections
 var sliceOfPorts []string
+var model = auction.AuctionModel{
+	HighestBid:    0,
+	HighestBidder: "",
+}
 
 func main() {
 
-	//log to file, taken from https://dev.to/gholami1313/saving-log-messages-to-a-custom-log-file-in-golang-ce5
-	LOG_FILE := "log.txt"
-
-	logFile, err := os.OpenFile(LOG_FILE, os.O_APPEND|os.O_RDWR|os.O_CREATE, 0644)
-	if err != nil {
-		log.Panic(err)
-	}
-	defer logFile.Close()
-	log.SetOutput(logFile)
-
-	log.Println("-----------------------------------")
-
-	log.Println("Logging to custom file")
-
 	// Create listener tcp on port 9080
-	list, err := net.Listen("tcp", ":9081")
+	list, err := net.Listen("tcp", ":3000")
 	if err != nil {
 		log.Fatalf("Failed to listen on port 9081: %v", err)
 	}
 
 	grpcServer := grpc.NewServer()
-	auction.RegisterServerNodeServer(grpcServer, &Server{})
+	auction.RegisterAuctionServer(grpcServer, &Server{})
 
 	log.Println("Server is set up on port 9081")
 
@@ -53,4 +45,32 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to start gRPC Server :: %v", err)
 	}
+
+	fmt.Println(model)
+}
+
+func (s *Server) Bid(ctx context.Context, in *auction.BidRequest) (*auction.BidReply, error) {
+	username := in.Port
+	bidAmountInt, err := strconv.Atoi(in.Message)
+	var replyMessage string
+
+	if err != nil {
+		log.Fatalf("Error converting bid amount")
+	}
+
+	if bidAmountInt > int(model.HighestBid) {
+		model.HighestBid = int(bidAmountInt)
+		model.HighestBidder = username
+
+		replyMessage = "You now have the highest bid by " + in.Message
+	} else {
+		highestBidString := strconv.Itoa(model.HighestBid)
+		replyMessage = "Your bid did not go through. The highest current bid is " + highestBidString + " by " + model.HighestBidder
+	}
+
+	reply := auction.BidReply{
+		ReplyMessage: replyMessage,
+	}
+
+	return &reply, nil
 }

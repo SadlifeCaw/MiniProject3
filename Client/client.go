@@ -8,49 +8,34 @@ import (
 	"os"
 	"strings"
 
-	"google.golang.org/grpc"
-
 	t "time"
 
 	auction "github.com/SadlifeCaw/MiniProject3/Auction"
+	"google.golang.org/grpc"
 )
 
+var sliceOfServerPorts []string
+
+var username string = ""
+
 func main() {
-	// Creat a virtual RPC Client Connection on port  9080 WithInsecure (because  of http)
-	var conn *grpc.ClientConn
-	conn, err := grpc.Dial(":9081", grpc.WithInsecure(), grpc.WithBlock())
-	if err != nil {
-		log.Fatalf("Could not connect: %s", err)
-	}
-
-	// Defer means: When this function returns, call this method (meaing, one main is done, close connection)
-	defer conn.Close()
-
-	//create context
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	//  Create new Client from generated gRPC code from proto
-	client := auction.NewServerNodeClient(conn)
-
-	fmt.Println("Type in your username")
-
-	if err != nil {
-		log.Fatalf("Failed to read from console")
-	}
+	//hard coded to expect 3 servers on these ports
+	sliceOfServerPorts = append(sliceOfServerPorts, ":3000")
 
 	//Read user input in terminal
-	go ReadFromTerminal(ctx, client)
+	go ReadFromTerminal()
 
-	//read from server
-	go PrintBroadcastsFromServer(client)
+	fmt.Println("Bid on the auction by writing: 'Bid x', where 'x' is your bid amount")
+	fmt.Println("Get the status on the auction by writing: 'Status'")
 
 	for {
 		t.Sleep(1000 * t.Hour)
 	}
 }
 
-func ReadFromTerminal(ctx context.Context, client auction.ServerNodeClient) {
+func ReadFromTerminal() {
+	fmt.Println("Please enter your username")
+
 	for {
 		reader := bufio.NewReader(os.Stdin)
 		clientMessage, err := reader.ReadString('\n')
@@ -60,20 +45,62 @@ func ReadFromTerminal(ctx context.Context, client auction.ServerNodeClient) {
 		}
 
 		clientMessage = strings.Trim(clientMessage, "\r\n")
+		splitString := strings.Fields(clientMessage)
 
-		if clientMessage == "bid" {
-			bidRequest := auction.BidRequest{}
+		//rn username is checked every time user types message, can be optimized
+		if username == "" {
+			username = clientMessage
+		}
 
-			client.Bid(ctx, &bidRequest)
+		if splitString[0] == "bid" {
 
-		} else if "" == "status" {
-			statusRequest := auction.StatusRequest{}
-			client.Status(ctx, &statusRequest)
+			bidAmount := splitString[1]
+			BroadcastToServer(true, bidAmount)
+
+		} else if splitString[0] == "status" {
+			BroadcastToServer(false, "")
 		}
 	}
 }
 
-func PrintBroadcastsFromServer(client auction.ServerNodeClient) {
+func BroadcastToServer(isBid bool, bidAmount string) {
+	for _, port := range sliceOfServerPorts {
+
+		//fmt.Println(isBid, port)
+
+		var conn *grpc.ClientConn
+		conn, error := grpc.Dial(port, grpc.WithInsecure(), grpc.WithBlock())
+		if error != nil {
+			log.Fatalf("Could not connect: %s", error)
+		}
+
+		// Defer means: When this function returns, call this method (meaing, one main is done, close connection)
+		defer conn.Close()
+
+		//  Create new Client from generated gRPC code from proto
+		client := auction.NewAuctionClient(conn)
+		//create context
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		if isBid {
+
+			request := auction.BidRequest{
+				Message: bidAmount,
+				Port:    username,
+			}
+
+			BidReply, err := client.Bid(ctx, &request)
+			if err != nil {
+				fmt.Println("Error while waiting for server reply (Bid)")
+			}
+
+			fmt.Println(BidReply.ReplyMessage)
+		}
+	}
+}
+
+func PrintBroadcastsFromServer(client auction.AuctionClient) {
 
 	for {
 		messageToPrint := "Hello"
