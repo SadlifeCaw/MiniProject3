@@ -6,13 +6,9 @@ option go_package = "https://github.com/SadlifeCaw/MiniProject3";
 service Auction {
   rpc Bid(BidRequest) returns (BidReply){};
   rpc Status(StatusRequest) returns (StatusReply){};
-  rpc Finished(FinishMessage) returns (FinishReply){};
-  rpc ExportInformation(InfoMessage) returns (EmptyReply){};
 }
 
-message StatusRequest {
-
-}
+message StatusRequest {}
 
 message BidRequest {
   string bid = 1;

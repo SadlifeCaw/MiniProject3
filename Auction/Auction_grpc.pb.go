@@ -20,8 +20,6 @@ const _ = grpc.SupportPackageIsVersion7
 type AuctionClient interface {
 	Bid(ctx context.Context, in *BidRequest, opts ...grpc.CallOption) (*BidReply, error)
 	Status(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusReply, error)
-	Finished(ctx context.Context, in *FinishMessage, opts ...grpc.CallOption) (*FinishReply, error)
-	ExportInformation(ctx context.Context, in *InfoMessage, opts ...grpc.CallOption) (*EmptyReply, error)
 }
 
 type auctionClient struct {
@@ -50,32 +48,12 @@ func (c *auctionClient) Status(ctx context.Context, in *StatusRequest, opts ...g
 	return out, nil
 }
 
-func (c *auctionClient) Finished(ctx context.Context, in *FinishMessage, opts ...grpc.CallOption) (*FinishReply, error) {
-	out := new(FinishReply)
-	err := c.cc.Invoke(ctx, "/Auction.Auction/Finished", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *auctionClient) ExportInformation(ctx context.Context, in *InfoMessage, opts ...grpc.CallOption) (*EmptyReply, error) {
-	out := new(EmptyReply)
-	err := c.cc.Invoke(ctx, "/Auction.Auction/ExportInformation", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // AuctionServer is the server API for Auction service.
 // All implementations must embed UnimplementedAuctionServer
 // for forward compatibility
 type AuctionServer interface {
 	Bid(context.Context, *BidRequest) (*BidReply, error)
 	Status(context.Context, *StatusRequest) (*StatusReply, error)
-	Finished(context.Context, *FinishMessage) (*FinishReply, error)
-	ExportInformation(context.Context, *InfoMessage) (*EmptyReply, error)
 	mustEmbedUnimplementedAuctionServer()
 }
 
@@ -88,12 +66,6 @@ func (UnimplementedAuctionServer) Bid(context.Context, *BidRequest) (*BidReply, 
 }
 func (UnimplementedAuctionServer) Status(context.Context, *StatusRequest) (*StatusReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Status not implemented")
-}
-func (UnimplementedAuctionServer) Finished(context.Context, *FinishMessage) (*FinishReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Finished not implemented")
-}
-func (UnimplementedAuctionServer) ExportInformation(context.Context, *InfoMessage) (*EmptyReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ExportInformation not implemented")
 }
 func (UnimplementedAuctionServer) mustEmbedUnimplementedAuctionServer() {}
 
@@ -144,42 +116,6 @@ func _Auction_Status_Handler(srv interface{}, ctx context.Context, dec func(inte
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Auction_Finished_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(FinishMessage)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AuctionServer).Finished(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/Auction.Auction/Finished",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuctionServer).Finished(ctx, req.(*FinishMessage))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Auction_ExportInformation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(InfoMessage)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AuctionServer).ExportInformation(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/Auction.Auction/ExportInformation",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuctionServer).ExportInformation(ctx, req.(*InfoMessage))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // Auction_ServiceDesc is the grpc.ServiceDesc for Auction service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -194,14 +130,6 @@ var Auction_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Status",
 			Handler:    _Auction_Status_Handler,
-		},
-		{
-			MethodName: "Finished",
-			Handler:    _Auction_Finished_Handler,
-		},
-		{
-			MethodName: "ExportInformation",
-			Handler:    _Auction_ExportInformation_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
