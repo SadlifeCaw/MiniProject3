@@ -1,14 +1,10 @@
 package main
 
 import (
-	"bufio"
 	"context"
-	"fmt"
 	"log"
 	"net"
-	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	auction "github.com/SadlifeCaw/MiniProject3/Auction"
@@ -21,50 +17,25 @@ type Server struct {
 }
 
 //slice of all known connections
-var sliceOfPorts []string
 var model = auction.AuctionModel{
 	HighestBid:    0,
 	HighestBidder: "",
+	AuctionTime:   60, //init auction time to 60 seconds
 }
 
-var ownPort string
-var auctionOver bool
-var auctionTime int = 60
-
 func main() {
+	// Create listener tcp on port 3000
+	//if port 3000 is occupied, use port 3001
+	list, err := net.Listen("tcp", ":3000")
+	ownPort := ":3000"
 
-	fmt.Println("Choose port, type number in console:")
-	fmt.Println("1: Port :3000")
-	fmt.Println("2: Port :3001")
-
-	var portChosen bool = false
-
-	//let user choose server port
-	for !portChosen {
-		reader := bufio.NewReader(os.Stdin)
-		clientMessage, err := reader.ReadString('\n')
-
-		if err != nil {
-			log.Fatalf("Failed to read from console")
-		}
-
-		clientMessage = strings.Trim(clientMessage, "\r\n")
-
-		if clientMessage == "1" {
-			ownPort = ":3000"
-			portChosen = true
-		} else if clientMessage == "2" {
-			ownPort = ":3001"
-			portChosen = true
-		} else {
-			fmt.Println("1 or 2, not that hard")
-		}
-	}
-
-	// Create listener tcp on port 9080
-	list, err := net.Listen("tcp", ownPort)
 	if err != nil {
-		log.Fatalf("Failed to listen on port: %v", err)
+
+		list, err = net.Listen("tcp", ":3001")
+		if err != nil {
+			log.Fatalf("Failed to listen on port: %v", err)
+		}
+		ownPort = ":3001"
 	}
 
 	grpcServer := grpc.NewServer()
@@ -94,12 +65,9 @@ func AuctionCounter() {
 	}
 
 	//decrease untill 0
-	for auctionTime > 0 {
+	for model.AuctionTime > 0 {
 		time.Sleep(time.Second)
-		auctionTime--
-	}
-	if auctionTime == 0 {
-		auctionOver = true
+		model.AuctionTime--
 	}
 }
 
@@ -109,7 +77,7 @@ func (s *Server) Bid(ctx context.Context, in *auction.BidRequest) (*auction.BidR
 
 	reply := auction.BidReply{}
 
-	if auctionTime <= 0 {
+	if model.AuctionTime <= 0 {
 		reply.ReplyMessage = "The auction has ended. You can no longer bid"
 
 	} else {
@@ -126,11 +94,11 @@ func (s *Server) Bid(ctx context.Context, in *auction.BidRequest) (*auction.BidR
 			model.HighestBid = int(bidAmountInt)
 			model.HighestBidder = username
 
-			replyMessage = "You now have the highest bid by " + in.Bid + ". Time remaining " + strconv.Itoa(auctionTime) + " seconds"
+			replyMessage = "You now have the highest bid by " + in.Bid + ". Time remaining " + strconv.Itoa(model.AuctionTime) + " seconds"
 		} else {
 			highestBidString := strconv.Itoa(model.HighestBid)
 			//it would make more sense to split this information in the replyMessage, and let the client handle formatting
-			replyMessage = "Your bid did not go through. The highest current bid is " + highestBidString + " by " + model.HighestBidder + ". Time remaining " + strconv.Itoa(auctionTime) + " seconds"
+			replyMessage = "Your bid did not go through. The highest current bid is " + highestBidString + " by " + model.HighestBidder + ". Time remaining " + strconv.Itoa(model.AuctionTime) + " seconds"
 		}
 
 		reply.ReplyMessage = replyMessage
@@ -144,14 +112,14 @@ func (s *Server) Status(ctx context.Context, in *auction.StatusRequest) (*auctio
 
 	bidAmountInt := strconv.Itoa(model.HighestBid)
 
-	if auctionOver {
+	if model.AuctionTime <= 0 {
 		stringToReturn = "The auction has ended. The winner was " + model.HighestBidder + " who won with a bid of " + bidAmountInt
 	}
-	if auctionTime < 60 && !auctionOver {
+	if model.AuctionTime < 60 && model.AuctionTime > 0 {
 		//auction started
-		stringToReturn = "The auction is ongoing. The highest bid is " + bidAmountInt + " by " + model.HighestBidder + ". Time remaining " + strconv.Itoa(auctionTime) + " seconds"
+		stringToReturn = "The auction is ongoing. The highest bid is " + bidAmountInt + " by " + model.HighestBidder + ". Time remaining " + strconv.Itoa(model.AuctionTime) + " seconds"
 	}
-	if auctionTime == 60 && !auctionOver {
+	if model.AuctionTime == 60 {
 		stringToReturn = "The auction hasn't begun yet. Make a bid to start!"
 	}
 

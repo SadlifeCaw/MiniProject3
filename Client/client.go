@@ -20,7 +20,7 @@ var SliceOfServerPorts []string
 var username string = ""
 
 func main() {
-	//hard coded to expect 3 servers on these ports
+	//hard coded to expect 2 servers on these ports
 	SliceOfServerPorts = append(SliceOfServerPorts, ":3000", ":3001")
 
 	//Read user input in terminal
