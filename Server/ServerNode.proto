@@ -4,14 +4,19 @@ package Server;
 option go_package = "https://github.com/SadlifeCaw/MiniProject3";
 
 service ServerNode {
-  rpc AcceptRequest(Request) returns (StatusReply){};
+  rpc Bid(BidRequest) returns (BidReply){};
+  rpc Status(StatusRequest) returns (StatusReply){};
   rpc Finished(FinishMessage) returns (FinishReply){};
   rpc ExportInformation(InfoMessage) returns (EmptyReply){};
 }
 
-message Request {
+message StatusRequest {
   string message = 1;
   int32 bid = 2;
+}
+
+message BidRequest {
+  string message = 1;
 }
 
 message FinishMessage{
@@ -24,6 +29,10 @@ message FinishReply{
 }
 
 message StatusReply{
+  string replyMessage = 1;
+}
+
+message BidReply{
   string replyMessage = 1;
 }
 
