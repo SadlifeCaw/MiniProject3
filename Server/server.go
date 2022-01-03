@@ -2,25 +2,21 @@ package main
 
 import (
 	"context"
+	Inc "github.com/SadlifeCaw/MiniProject3/Inc"
+	"google.golang.org/grpc"
 	"log"
 	"net"
 	"strconv"
-	"time"
-
-	auction "github.com/SadlifeCaw/MiniProject3/Auction"
-
-	"google.golang.org/grpc"
 )
 
 type Server struct {
-	auction.UnimplementedAuctionServer
+	Inc.UnimplementedIncrementerServer
 }
 
 //slice of all known connections
-var model = auction.AuctionModel{
-	HighestBid:    0,
-	HighestBidder: "",
-	AuctionTime:   60, //init auction time to 60 seconds
+var model = Inc.IncrementerModel{
+	Counter:    0,
+	User: "",
 }
 
 func main() {
@@ -39,11 +35,11 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer()
-	auction.RegisterAuctionServer(grpcServer, &Server{})
+	Inc.RegisterIncrementerServer(grpcServer, &Server{})
 
 	log.Println("Server is set up on port", ownPort)
 
-	go AuctionCounter()
+	go IncrementerCounter()
 
 	if err := grpcServer.Serve(list); err != nil {
 		log.Fatalf("failed to server %v", err)
@@ -56,76 +52,33 @@ func main() {
 	}
 }
 
-func AuctionCounter() {
-	//wait untill a bid is made
+func IncrementerCounter() {
+	//wait untill a increment is made
 	for {
-		if model.HighestBid > 0 {
+		if model.Counter > 0 {
 			break
 		}
-	}
-
-	//decrease untill 0
-	for model.AuctionTime > 0 {
-		time.Sleep(time.Second)
-		model.AuctionTime--
 	}
 }
 
 //grpc methods
 
-func (s *Server) Bid(ctx context.Context, in *auction.BidRequest) (*auction.BidReply, error) {
+func (s *Server) Increment(ctx context.Context, in *Inc.Request) (*Inc.Reply, error) {
 
-	reply := auction.BidReply{}
+	reply := Inc.Reply{}
 
-	if model.AuctionTime <= 0 {
-		reply.ReplyMessage = "The auction has ended. You can no longer bid"
+	username := in.Username
+	var replyMessage string
 
-	} else {
-		username := in.Username
-		bidAmountInt, err := strconv.Atoi(in.Bid)
-		var replyMessage string
+	// a better implementation would make sure each client has a unique ID rather than only rely on username
+	var currentcount = model.Counter
+	model.Counter = model.Counter + 1
+	model.User = username
 
-		if err != nil {
-			log.Fatalf("Error converting bid amount")
-		}
+	replyMessage = "Counter is at " + strconv.Itoa(currentcount) + "."
 
-		// a better implementation would make sure each client has a unique ID rather than only rely on username
-		if bidAmountInt > int(model.HighestBid) {
-			model.HighestBid = int(bidAmountInt)
-			model.HighestBidder = username
-
-			replyMessage = "You now have the highest bid by " + in.Bid + ". Time remaining " + strconv.Itoa(model.AuctionTime) + " seconds"
-		} else {
-			highestBidString := strconv.Itoa(model.HighestBid)
-			//it would make more sense to split this information in the replyMessage, and let the client handle formatting
-			replyMessage = "Your bid did not go through. The highest current bid is " + highestBidString + " by " + model.HighestBidder + ". Time remaining " + strconv.Itoa(model.AuctionTime) + " seconds"
-		}
-
-		reply.ReplyMessage = replyMessage
-	}
+	reply.ReplyMessage = replyMessage
 
 	return &reply, nil
 }
 
-func (s *Server) Status(ctx context.Context, in *auction.StatusRequest) (*auction.StatusReply, error) {
-	var stringToReturn string
-
-	bidAmountInt := strconv.Itoa(model.HighestBid)
-
-	if model.AuctionTime <= 0 {
-		stringToReturn = "The auction has ended. The winner was " + model.HighestBidder + " who won with a bid of " + bidAmountInt
-	}
-	if model.AuctionTime < 60 && model.AuctionTime > 0 {
-		//auction started
-		stringToReturn = "The auction is ongoing. The highest bid is " + bidAmountInt + " by " + model.HighestBidder + ". Time remaining " + strconv.Itoa(model.AuctionTime) + " seconds"
-	}
-	if model.AuctionTime == 60 {
-		stringToReturn = "The auction hasn't begun yet. Make a bid to start!"
-	}
-
-	reply := auction.StatusReply{
-		ReplyMessage: stringToReturn,
-	}
-
-	return &reply, nil
-}

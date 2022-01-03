@@ -11,7 +11,7 @@ import (
 
 	t "time"
 
-	auction "github.com/SadlifeCaw/MiniProject3/Auction"
+	Inc "github.com/SadlifeCaw/MiniProject3/Inc"
 	"google.golang.org/grpc"
 )
 
@@ -25,11 +25,7 @@ func main() {
 
 	//Read user input in terminal
 	go ReadFromTerminal()
-
-	fmt.Println("---------")
-	fmt.Println("Bid on the auction by writing: 'Bid x', where 'x' is your bid amount")
-	fmt.Println("Get the status on the auction by writing: 'Status'")
-	fmt.Println("")
+	fmt.Print("╒═════ INCREMENTER BASE ═════╕\n│      CTRL + C to leave     │\n│   Write Inc to Increment   │\n└────────────────────────────┘\n\n")
 
 	for {
 		t.Sleep(1000 * t.Hour)
@@ -58,22 +54,17 @@ func ReadFromTerminal() {
 		clientMessage = strings.ToLower(clientMessage)
 		splitString := strings.Fields(clientMessage)
 
-		if splitString[0] == "bid" {
+		if splitString[0] == "inc" {
+			BroadcastToServer()
 
-			bidAmount := splitString[1]
-			BroadcastToServer(true, bidAmount)
-
-		} else if splitString[0] == "status" {
-			BroadcastToServer(false, "")
 		} else {
 			fmt.Println("Unknown command")
 		}
 	}
 }
 
-//use bool isBid, since the program only has two requests: Bid and Status
 //not open for extension, but works
-func BroadcastToServer(isBid bool, bidAmount string) {
+func BroadcastToServer() {
 
 	var SliceOfServerResponses []string
 
@@ -92,37 +83,24 @@ func BroadcastToServer(isBid bool, bidAmount string) {
 		}
 
 		defer conn.Close()
-		client := auction.NewAuctionClient(conn)
+		client := Inc.NewIncrementerClient(conn)
 
 		//create context
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		if isBid {
-			//send bid request
-			request := auction.BidRequest{
-				Bid:      bidAmount,
+			//send increment request
+			request := Inc.Request{
 				Username: username,
 			}
 
-			BidReply, err := client.Bid(ctx, &request)
+			Reply, err := client.Increment(ctx, &request)
 			if err != nil {
-				fmt.Println("Error while waiting for server reply (Bid)")
+				fmt.Println("Error while waiting for server reply")
 			}
 
 			//save reply to slice
-			SliceOfServerResponses = append(SliceOfServerResponses, BidReply.ReplyMessage)
-		} else {
-			//send status request
-			request := auction.StatusRequest{}
-
-			StatusReply, err := client.Status(ctx, &request)
-			if err != nil {
-				fmt.Println("Error while waiting for server reply (Status)")
-			}
-
-			SliceOfServerResponses = append(SliceOfServerResponses, StatusReply.ReplyMessage)
-		}
+			SliceOfServerResponses = append(SliceOfServerResponses, Reply.ReplyMessage)
 	}
 
 	//see if data is valid
@@ -134,7 +112,7 @@ func BroadcastToServer(isBid bool, bidAmount string) {
 	} else {
 		//if data is invalid, try to query servers again
 		fmt.Println("Recieved different data from different servers. Retrying query")
-		BroadcastToServer(isBid, bidAmount)
+		BroadcastToServer()
 	}
 
 }
