@@ -1,4 +1,4 @@
-# MiniProject3
+# Mock Examn - Incrementer
 
 ## Notes
 To reset the counter, you must restart the servers.
