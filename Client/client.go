@@ -52,9 +52,8 @@ func ReadFromTerminal() {
 		}
 
 		clientMessage = strings.ToLower(clientMessage)
-		splitString := strings.Fields(clientMessage)
 
-		if splitString[0] == "inc" {
+		if clientMessage == "inc" {
 			BroadcastToServer()
 
 		} else {
